@@ -28,7 +28,7 @@ namespace NobelLaureatesBE.API.Controllers
             if (!await _userService.IsUniqueUser(model.Username))
                 return BadRequest("Username already exists");
 
-            var user = await _userService.RegisterUser(model.Username, model.Password);
+            var user = await _userService.RegisterUser(model.Username, model.Password, model.FirstName, model.LastName);
 
             if (user == null)
                 return BadRequest("User registration failed");
@@ -98,6 +98,8 @@ namespace NobelLaureatesBE.API.Controllers
     {
         public string Username { get; set; }
         public string Password { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
     }
 
     public class LoginModel

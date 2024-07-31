@@ -19,12 +19,14 @@ namespace NobelLaureatesBE.BusinessLogic.Services
             return await _context.Users.AnyAsync(u => u.Username == username) == false;
         }
 
-        public async Task<User> RegisterUser(string username, string password)
+        public async Task<User> RegisterUser(string username, string password, string firstName, string lastName)
         {
             var user = new User
             {
                 Username = username,
                 Password = BCrypt.Net.BCrypt.HashPassword(password),
+                FirstName = firstName,
+                LastName = lastName,
                 RefreshToken = GenerateRefreshToken(),
                 RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(2)
             };
