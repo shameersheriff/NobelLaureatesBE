@@ -2,3 +2,4 @@
 obj/
 bin/
 /NobelLaureatesBE/appsettings.Development.json
+/NobelLaureatesBE.Repositories/Migrations
