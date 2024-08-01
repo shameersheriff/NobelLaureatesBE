@@ -33,7 +33,11 @@ namespace NobelLaureatesBE.API.Controllers
             if (user == null)
                 return BadRequest("User registration failed");
 
-            return Ok(user);
+
+            var token = GenerateJwtToken(user);
+
+            return Ok(new { AccessToken = token, RefreshToken = user.RefreshToken, User = user });
+
         }
 
         [HttpPost("login")]
@@ -74,7 +78,8 @@ namespace NobelLaureatesBE.API.Controllers
                 {
                     new Claim("Id", user.Id.ToString()),
                     new Claim("Email", user.Username.ToString()),
-                    new Claim("FullName", user.Username.ToString()),
+                    new Claim("FirstName", user.FirstName),
+                    new Claim("LastName", user.LastName),
                 }),
                 Expires = DateTime.UtcNow.AddMinutes(int.Parse(_configuration["Jwt:DurationInMinutes"])),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
