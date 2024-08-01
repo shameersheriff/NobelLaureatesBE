@@ -12,6 +12,7 @@ builder.Services.AddHttpClient<NobelPrizeService>();
 
 // Dependency injection
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
