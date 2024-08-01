@@ -9,5 +9,7 @@ namespace NobelLaureatesBE.BusinessLogic.Interfaces
         Task<User> Authenticate(string username, string password);
         Task SaveRefreshToken(User user, string refreshToken, DateTime refreshTokenExpiryTime);
         Task<User> GetUserByRefreshToken(string refreshToken);
+        string GenerateRefreshToken();
+        string GenerateJwtToken(User user, byte[] key, DateTime expiry);
     }
 }

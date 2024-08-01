@@ -15,11 +15,13 @@ namespace NobelLaureatesBE.API.Controllers
     {
         private readonly IUserService _userService;
         private readonly IConfiguration _configuration;
+        private byte[] _key;
 
         public AuthController(IUserService userService, IConfiguration configuration)
         {
             _userService = userService;
             _configuration = configuration;
+            _key = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]);
         }
 
         [HttpPost("register")]
@@ -33,8 +35,8 @@ namespace NobelLaureatesBE.API.Controllers
             if (user == null)
                 return BadRequest("User registration failed");
 
-
-            var token = GenerateJwtToken(user);
+            var expiry = DateTime.UtcNow.AddMinutes(int.Parse(_configuration["Jwt:DurationInMinutes"]));
+            var token = _userService.GenerateJwtToken(user, _key, expiry);
 
             return Ok(new { AccessToken = token, RefreshToken = user.RefreshToken, User = user });
 
@@ -47,8 +49,9 @@ namespace NobelLaureatesBE.API.Controllers
             if (user == null)
                 return Unauthorized();
 
-            var token = GenerateJwtToken(user);
-            var refreshToken = GenerateRefreshToken();
+            var expiry = DateTime.UtcNow.AddMinutes(int.Parse(_configuration["Jwt:DurationInMinutes"]));
+            var token = _userService.GenerateJwtToken(user, _key, expiry);
+            var refreshToken = _userService.GenerateRefreshToken();
             await _userService.SaveRefreshToken(user, refreshToken, DateTime.UtcNow.AddDays(int.Parse(_configuration["Jwt:RefreshTokenDurationInDays"])));
 
             return Ok(new { AccessToken = token, RefreshToken = refreshToken });
@@ -61,41 +64,12 @@ namespace NobelLaureatesBE.API.Controllers
             if (user == null)
                 return Unauthorized();
 
-            var token = GenerateJwtToken(user);
-            var refreshToken = GenerateRefreshToken();
+            var expiry = DateTime.UtcNow.AddMinutes(int.Parse(_configuration["Jwt:DurationInMinutes"]));
+            var token = _userService.GenerateJwtToken(user, _key, expiry);
+            var refreshToken = _userService.GenerateRefreshToken();
             await _userService.SaveRefreshToken(user, refreshToken, DateTime.UtcNow.AddDays(int.Parse(_configuration["Jwt:RefreshTokenDurationInDays"])));
 
             return Ok(new { AccessToken = token, RefreshToken = refreshToken });
-        }
-
-        private string GenerateJwtToken(User user)
-        {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]);
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(new Claim[]
-                {
-                    new Claim("Id", user.Id.ToString()),
-                    new Claim("Email", user.Username.ToString()),
-                    new Claim("FirstName", user.FirstName),
-                    new Claim("LastName", user.LastName),
-                }),
-                Expires = DateTime.UtcNow.AddMinutes(int.Parse(_configuration["Jwt:DurationInMinutes"])),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-            };
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            return tokenHandler.WriteToken(token);
-        }
-
-        private string GenerateRefreshToken()
-        {
-            var randomNumber = new byte[32];
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(randomNumber);
-                return Convert.ToBase64String(randomNumber);
-            }
         }
     }
 
