@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="..\NobelLaureatesBE.Repositories\NobelLaureatesBE.Repositories.csproj" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
   </ItemGroup>
 
 </Project>

@@ -8,6 +8,8 @@ using NobelLaureatesBE.Repositories.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddHttpClient<NobelPrizeService>();
+
 // Dependency injection
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
