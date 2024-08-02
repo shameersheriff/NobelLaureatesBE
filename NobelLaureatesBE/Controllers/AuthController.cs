@@ -63,7 +63,7 @@ namespace NobelLaureatesBE.API.Controllers
         }
 
         [HttpPost("refresh")]
-        public async Task<IActionResult> Refresh([FromBody] RefreshModel model)
+        public async Task<IActionResult> Refresh([FromBody] RefreshTokenModel model)
         {
             if (model == null)
                 return BadRequest("Invalid client request");
@@ -73,11 +73,11 @@ namespace NobelLaureatesBE.API.Controllers
                 return Unauthorized("Invalid refresh token");
 
             var expiry = DateTime.UtcNow.AddMinutes(_tokenDurationInMinutes);
-            var token = _userService.GenerateJwtToken(user, _key, expiry);
+            var accessToken = _userService.GenerateJwtToken(user, _key, expiry);
             var refreshToken = _userService.GenerateRefreshToken();
             await _userService.SaveRefreshToken(user, refreshToken, DateTime.UtcNow.AddDays(_refreshTokenDurationInDays));
 
-            return Ok(new { AccessToken = token, RefreshToken = refreshToken });
+            return Ok(new { AccessToken = accessToken, RefreshToken = refreshToken });
         }
     }
 
@@ -95,7 +95,7 @@ namespace NobelLaureatesBE.API.Controllers
         public string Password { get; set; }
     }
 
-    public class RefreshModel
+    public class RefreshTokenModel
     {
         public string RefreshToken { get; set; }
     }
