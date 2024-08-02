@@ -8,24 +8,27 @@ using NobelLaureatesBE.Repositories.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHttpClient<NobelPrizeService>();
-
 // Dependency injection
+builder.Services.AddHttpClient<NobelPrizeService>();
+builder.Services.AddScoped<INobelPrizeService, NobelPrizeService>();
+
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Add services to the container.
+// Add controllers
 builder.Services.AddControllers();
+
+// Configure CORS policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAllOrigins",
-        builder =>
+        policyBuilder =>
         {
-            builder.AllowAnyOrigin()
-                   .AllowAnyMethod()
-                   .AllowAnyHeader();
+            policyBuilder.AllowAnyOrigin()
+                         .AllowAnyMethod()
+                         .AllowAnyHeader();
         });
 });
 
@@ -54,6 +57,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// Add Swagger for API documentation
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

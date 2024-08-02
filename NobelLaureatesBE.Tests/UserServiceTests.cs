@@ -13,6 +13,7 @@ namespace NobelLaureatesBE.Tests
     {
         private IUserService _userService;
         private DbContextOptions<ApplicationDbContext> _dbContextOptions;
+        private ApplicationDbContext _context;
 
         [SetUp]
         public void Setup()
@@ -21,151 +22,131 @@ namespace NobelLaureatesBE.Tests
                 .UseInMemoryDatabase(databaseName: "TestDatabase")
                 .Options;
 
-            var context = new ApplicationDbContext(_dbContextOptions);
-            _userService = new UserService(context);
+            _context = new ApplicationDbContext(_dbContextOptions);
+            _userService = new UserService(_context);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            _context.Database.EnsureDeleted();
+            _context.Dispose();
         }
 
         [Test]
         public async Task IsUniqueUser_ReturnsTrue_WhenUserDoesNotExist()
         {
-            using (var context = new ApplicationDbContext(_dbContextOptions))
-            {
-                // Act
-                var result = await _userService.IsUniqueUser("nonexistentuser");
+            // Act
+            var result = await _userService.IsUniqueUser("nonexistentuser");
 
-                // Assert
-                Assert.IsTrue(result);
-            }
+            // Assert
+            Assert.IsTrue(result);
         }
 
         [Test]
         public async Task IsUniqueUser_ReturnsFalse_WhenUserExists()
         {
-            using (var context = new ApplicationDbContext(_dbContextOptions))
-            {
-                // Arrange
-                var refreshToken = _userService.GenerateRefreshToken();
-                context.Users.Add(new User { Username = "existinguser", Password = "Password", FirstName = "FirstName", LastName = "LastName", RefreshToken = refreshToken });
-                context.SaveChanges();
+            // Arrange
+            var refreshToken = _userService.GenerateRefreshToken();
+            _context.Users.Add(new User { Username = "existinguser", Password = "Password", FirstName = "FirstName", LastName = "LastName", RefreshToken = refreshToken });
+            _context.SaveChanges();
 
-                // Act
-                var result = await _userService.IsUniqueUser("existinguser");
+            // Act
+            var result = await _userService.IsUniqueUser("existinguser");
 
-                // Assert
-                Assert.IsFalse(result);
-            }
+            // Assert
+            Assert.IsFalse(result);
         }
 
         [Test]
         public async Task RegisterUser_CreatesUserSuccessfully()
         {
-            using (var context = new ApplicationDbContext(_dbContextOptions))
-            {
+            // Act
+            var user = await _userService.RegisterUser("newuser", "password", "First", "Last");
 
-                // Act
-                var user = await _userService.RegisterUser("newuser", "password", "First", "Last");
-
-                // Assert
-                var createdUser = await context.Users.SingleOrDefaultAsync(u => u.Username == "newuser");
-                Assert.IsNotNull(createdUser);
-                Assert.AreEqual("newuser", createdUser.Username);
-                Assert.IsTrue(BCrypt.Net.BCrypt.Verify("password", createdUser.Password));
-                Assert.AreEqual("First", createdUser.FirstName);
-                Assert.AreEqual("Last", createdUser.LastName);
-            }
+            // Assert
+            var createdUser = await _context.Users.SingleOrDefaultAsync(u => u.Username == "newuser");
+            Assert.IsNotNull(createdUser);
+            Assert.AreEqual("newuser", createdUser.Username);
+            Assert.IsTrue(BCrypt.Net.BCrypt.Verify("password", createdUser.Password));
+            Assert.AreEqual("First", createdUser.FirstName);
+            Assert.AreEqual("Last", createdUser.LastName);
         }
 
         [Test]
         public async Task Authenticate_ReturnsUser_WhenCredentialsAreValid()
         {
-            using (var context = new ApplicationDbContext(_dbContextOptions))
-            {
-                // Arrange
-                var hashedPassword = BCrypt.Net.BCrypt.HashPassword("password");
-                var refreshToken = _userService.GenerateRefreshToken();
+            // Arrange
+            var hashedPassword = BCrypt.Net.BCrypt.HashPassword("password");
+            var refreshToken = _userService.GenerateRefreshToken();
 
-                context.Users.Add(new User { Username = "validuser", Password = hashedPassword, FirstName = "FirstName", LastName = "LastName", RefreshToken = refreshToken });
-                context.SaveChanges();
+            _context.Users.Add(new User { Username = "validuser", Password = hashedPassword, FirstName = "FirstName", LastName = "LastName", RefreshToken = refreshToken });
+            _context.SaveChanges();
 
-                // Act
-                var user = await _userService.Authenticate("validuser", "password");
+            // Act
+            var user = await _userService.Authenticate("validuser", "password");
 
-                Console.WriteLine("username : " + user.Username);
-
-                // Assert
-                Assert.IsNotNull(user);
-                Assert.AreEqual("validuser", user.Username);
-            }
+            // Assert
+            Assert.IsNotNull(user);
+            Assert.AreEqual("validuser", user.Username);
         }
 
         [Test]
         public async Task Authenticate_ReturnsNull_WhenCredentialsAreInvalid()
         {
-            using (var context = new ApplicationDbContext(_dbContextOptions))
-            {
-                // Act
-                var user = await _userService.Authenticate("invaliduser", "password");
+            // Act
+            var user = await _userService.Authenticate("invaliduser", "password");
 
-                // Assert
-                Assert.IsNull(user);
-            }
+            // Assert
+            Assert.IsNull(user);
         }
 
         [Test]
         public async Task SaveRefreshToken_UpdatesUserRefreshToken()
         {
-            using (var context = new ApplicationDbContext(_dbContextOptions))
-            {
-                // Arrange
-                var refreshToken = _userService.GenerateRefreshToken();
-                var user = new User { Username = "user1", Password = "Password", FirstName = "FirstName", LastName = "LastName", RefreshToken = refreshToken };
-                context.Users.Add(user);
-                context.SaveChanges();
-                var newRefreshToken = _userService.GenerateRefreshToken();
-                var newExpiryTime = DateTime.UtcNow.AddDays(2);
+            // Arrange
+            var refreshToken = _userService.GenerateRefreshToken();
+            var user = new User { Username = "user1", Password = "Password", FirstName = "FirstName", LastName = "LastName", RefreshToken = refreshToken };
+            _context.Users.Add(user);
+            _context.SaveChanges();
+            var newRefreshToken = _userService.GenerateRefreshToken();
+            var newExpiryTime = DateTime.UtcNow.AddDays(2);
 
-                // Act
-                await _userService.SaveRefreshToken(user, newRefreshToken, newExpiryTime);
+            // Act
+            await _userService.SaveRefreshToken(user, newRefreshToken, newExpiryTime);
 
-                // Assert
-                var updatedUser = await context.Users.FirstOrDefaultAsync(u => u.Username == "user1");
-                Assert.IsNotNull(updatedUser);
-                Assert.AreEqual(newRefreshToken, updatedUser.RefreshToken);
-                Assert.AreEqual(newExpiryTime, updatedUser.RefreshTokenExpiryTime);
-            }
+            // Assert
+            var updatedUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == "user1");
+            Assert.IsNotNull(updatedUser);
+            Assert.AreEqual(newRefreshToken, updatedUser.RefreshToken);
+            Assert.AreEqual(newExpiryTime, updatedUser.RefreshTokenExpiryTime);
         }
 
         [Test]
         public async Task GetUserByRefreshToken_ReturnsUser_WhenTokenIsValid()
         {
-            using (var context = new ApplicationDbContext(_dbContextOptions))
-            {
-                // Arrange
-                var validToken = _userService.GenerateRefreshToken();
-                var user = new User { Username = "user2", RefreshToken = validToken, Password = "Password", FirstName = "FirstName", LastName = "LastName" };
-                context.Users.Add(user);
-                context.SaveChanges();
+            // Arrange
+            var validToken = _userService.GenerateRefreshToken();
+            var user = new User { Username = "user2", RefreshToken = validToken, Password = "Password", FirstName = "FirstName", LastName = "LastName" };
+            _context.Users.Add(user);
+            _context.SaveChanges();
 
-                // Act
-                var result = await _userService.GetUserByRefreshToken(validToken);
+            // Act
+            var result = await _userService.GetUserByRefreshToken(validToken);
 
-                // Assert
-                Assert.IsNotNull(result);
-                Assert.AreEqual("user2", result.Username);
-            }
+            // Assert
+            Assert.IsNotNull(result);
+            Assert.AreEqual("user2", result.Username);
         }
 
         [Test]
         public async Task GetUserByRefreshToken_ReturnsNull_WhenTokenIsInvalid()
         {
-            using (var context = new ApplicationDbContext(_dbContextOptions))
-            {
-                // Act
-                var result = await _userService.GetUserByRefreshToken("invalidToken");
+            // Act
+            var result = await _userService.GetUserByRefreshToken("invalidToken");
 
-                // Assert
-                Assert.IsNull(result);
-            }
+            // Assert
+            Assert.IsNull(result);
         }
 
         [Test]
