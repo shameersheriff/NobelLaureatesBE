@@ -1,7 +1,6 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using NobelLaureatesBE.BusinessLogic.Interfaces;
@@ -15,16 +14,22 @@ namespace NobelLaureatesBE.BusinessLogic.Services
 
         public UserService(ApplicationDbContext context)
         {
-            _context = context;
+            _context = context ?? throw new ArgumentNullException(nameof(context));
         }
 
         public async Task<bool> IsUniqueUser(string username)
         {
-            return await _context.Users.AnyAsync(u => u.Username == username) == false;
+            if (string.IsNullOrWhiteSpace(username)) throw new ArgumentException("Username cannot be null or whitespace.", nameof(username));
+            return !await _context.Users.AnyAsync(u => u.Username == username);
         }
 
         public async Task<User> RegisterUser(string username, string password, string firstName, string lastName)
         {
+            if (string.IsNullOrWhiteSpace(username)) throw new ArgumentException("Username cannot be null or whitespace.", nameof(username));
+            if (string.IsNullOrWhiteSpace(password)) throw new ArgumentException("Password cannot be null or whitespace.", nameof(password));
+            if (string.IsNullOrWhiteSpace(firstName)) throw new ArgumentException("First name cannot be null or whitespace.", nameof(firstName));
+            if (string.IsNullOrWhiteSpace(lastName)) throw new ArgumentException("Last name cannot be null or whitespace.", nameof(lastName));
+
             var user = new User
             {
                 Username = username,
@@ -35,13 +40,16 @@ namespace NobelLaureatesBE.BusinessLogic.Services
                 RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(2)
             };
 
-            _context.Users.Add(user);
+            await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
             return user;
         }
 
         public async Task<User> Authenticate(string username, string password)
         {
+            if (string.IsNullOrWhiteSpace(username)) throw new ArgumentException("Username cannot be null or whitespace.", nameof(username));
+            if (string.IsNullOrWhiteSpace(password)) throw new ArgumentException("Password cannot be null or whitespace.", nameof(password));
+
             var user = await _context.Users.SingleOrDefaultAsync(u => u.Username == username);
             if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.Password))
             {
@@ -52,6 +60,9 @@ namespace NobelLaureatesBE.BusinessLogic.Services
 
         public async Task SaveRefreshToken(User user, string refreshToken, DateTime refreshTokenExpiryTime)
         {
+            if (user == null) throw new ArgumentNullException(nameof(user));
+            if (string.IsNullOrWhiteSpace(refreshToken)) throw new ArgumentException("Refresh token cannot be null or whitespace.", nameof(refreshToken));
+
             user.RefreshToken = refreshToken;
             user.RefreshTokenExpiryTime = refreshTokenExpiryTime;
             _context.Users.Update(user);
@@ -60,6 +71,7 @@ namespace NobelLaureatesBE.BusinessLogic.Services
 
         public async Task<User> GetUserByRefreshToken(string refreshToken)
         {
+            if (string.IsNullOrWhiteSpace(refreshToken)) throw new ArgumentException("Refresh token cannot be null or whitespace.", nameof(refreshToken));
             return await _context.Users.SingleOrDefaultAsync(u => u.RefreshToken == refreshToken);
         }
 
@@ -75,13 +87,16 @@ namespace NobelLaureatesBE.BusinessLogic.Services
 
         public string GenerateJwtToken(User user, byte[] key, DateTime expiry)
         {
+            if (user == null) throw new ArgumentNullException(nameof(user));
+            if (key == null || key.Length == 0) throw new ArgumentException("Key cannot be null or empty.", nameof(key));
+
             var tokenHandler = new JwtSecurityTokenHandler();
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(new Claim[]
                 {
                     new Claim("Id", user.Id.ToString()),
-                    new Claim("Email", user.Username.ToString()),
+                    new Claim("Email", user.Username),
                     new Claim("FirstName", user.FirstName),
                     new Claim("LastName", user.LastName),
                 }),

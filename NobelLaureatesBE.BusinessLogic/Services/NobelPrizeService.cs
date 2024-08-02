@@ -1,4 +1,4 @@
-﻿using Microsoft.IdentityModel.Tokens;
+﻿using System.Text;
 using NobelLaureatesBE.BusinessLogic.Interfaces;
 
 namespace NobelLaureatesBE.BusinessLogic.Services
@@ -9,57 +9,75 @@ namespace NobelLaureatesBE.BusinessLogic.Services
 
         public NobelPrizeService(HttpClient httpClient)
         {
-            _httpClient = httpClient;
+            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         }
 
         public async Task<string> GetNobelLaureatesAsync(int offset, int limit, string gender, string birthDate, string deathDate, string nobelPrizeCategory)
         {
-            string url = "http://api.nobelprize.org/2.0/laureates?";
+            if (limit <= 0) limit = 40;
 
+            var urlBuilder = new StringBuilder("http://api.nobelprize.org/2.0/laureates?")
+                .Append("limit=").Append(limit);
 
-            if (limit > 0)
-            {
-                url += "limit=" + limit;
-            }
-            else
-            {
-                url += "limit=40";
-            }
             if (offset > 0)
             {
-                url += "&offset=" + offset;
+                urlBuilder.Append("&offset=").Append(offset);
             }
-            if (gender == "male" || gender == "female" || gender == "other")
+            if (!string.IsNullOrEmpty(gender) && (gender == "male" || gender == "female" || gender == "other"))
             {
-                url += "&gender=" + gender;
+                urlBuilder.Append("&gender=").Append(gender);
             }
-            if (!birthDate.IsNullOrEmpty())
+            if (!string.IsNullOrEmpty(birthDate))
             {
-                url += "&birthDate=" + birthDate;
+                urlBuilder.Append("&birthDate=").Append(birthDate);
             }
-            if (!deathDate.IsNullOrEmpty())
+            if (!string.IsNullOrEmpty(deathDate))
             {
-                url += "&deathDate=" + deathDate;
+                urlBuilder.Append("&deathDate=").Append(deathDate);
             }
-            if (nobelPrizeCategory == "che" || nobelPrizeCategory == "eco" || nobelPrizeCategory == "lit")
+            if (!string.IsNullOrEmpty(nobelPrizeCategory) && (nobelPrizeCategory == "che" || nobelPrizeCategory == "eco" || nobelPrizeCategory == "lit"))
             {
-                url += "&nobelPrizeCategory=" + nobelPrizeCategory;
+                urlBuilder.Append("&nobelPrizeCategory=").Append(nobelPrizeCategory);
             }
-            var response = await _httpClient.GetAsync(url);
 
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadAsStringAsync();
+            var url = urlBuilder.ToString();
+
+            HttpResponseMessage response = null;
+            try
+            {
+                response = await _httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadAsStringAsync();
+            }
+            catch (HttpRequestException e)
+            {
+                throw new Exception("An error occurred while fetching Nobel laureates.", e);
+            }
+            finally
+            {
+                response?.Dispose();
+            }
         }
 
         public async Task<string> GetNobelLaureateAsync(int id)
         {
-            string url = "http://api.nobelprize.org/2.0/laureate/" + id;
+            var url = $"http://api.nobelprize.org/2.0/laureate/{id}";
 
-            var response = await _httpClient.GetAsync(url);
-
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadAsStringAsync();
+            HttpResponseMessage response = null;
+            try
+            {
+                response = await _httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadAsStringAsync();
+            }
+            catch (HttpRequestException e)
+            {
+                throw new Exception($"An error occurred while fetching the Nobel laureate with ID {id}.", e);
+            }
+            finally
+            {
+                response?.Dispose();
+            }
         }
-
     }
 }

@@ -93,7 +93,8 @@ namespace NobelLaureatesBE.Tests
                 });
 
             // Act & Assert
-            Assert.ThrowsAsync<HttpRequestException>(() => _nobelPrizeService.GetNobelLaureatesAsync(10, 5, "male", "1900-01-01", "2000-01-01", "che"));
+            var ex = Assert.ThrowsAsync<Exception>(() => _nobelPrizeService.GetNobelLaureatesAsync(10, 5, "male", "1900-01-01", "2000-01-01", "che"));
+            Assert.That(ex.Message, Is.EqualTo("An error occurred while fetching Nobel laureates."));
         }
 
         [Test]
@@ -111,7 +112,8 @@ namespace NobelLaureatesBE.Tests
                 });
 
             // Act & Assert
-            Assert.ThrowsAsync<HttpRequestException>(() => _nobelPrizeService.GetNobelLaureateAsync(1));
+            var ex = Assert.ThrowsAsync<Exception>(() => _nobelPrizeService.GetNobelLaureateAsync(1));
+            Assert.That(ex.Message, Is.EqualTo("An error occurred while fetching the Nobel laureate with ID 1."));
         }
     }
 }
